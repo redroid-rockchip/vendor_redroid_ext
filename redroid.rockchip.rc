@@ -1,0 +1,27 @@
+on early-init
+    # ueventd fix
+    chmod 0777 /dev/rga
+    chmod 0777 /dev/dri
+    chmod 0777 /dev/dri/card0
+    chmod 0777 /dev/dri/card1
+    chmod 0777 /dev/dri/renderD128
+    chmod 0777 /dev/dri/renderD129
+    chmod 0777 /dev/mpp_service
+    chmod 0666 /dev/mali0
+
+    chmod 0444 /dev/dma_heap/cma
+    chown system system /dev/dma_heap/cma
+    chmod 0444 /dev/dma_heap/cma-uncached
+    chown system system /dev/dma_heap/cma-uncached
+    chmod 0444 /dev/dma_heap/system
+    chown system system /dev/dma_heap/system
+    chmod 0444 /dev/dma_heap/system-dma32
+    chown system system /dev/dma_heap/system-dma32
+    chmod 0444 /dev/dma_heap/system-uncached
+    chown system system /dev/dma_heap/system-uncached
+    chmod 0444 /dev/dma_heap/system-uncached-dma32
+    chown system system /dev/dma_heap/system-uncached-dma32
+
+on post-fs
+    exec -- /bin/ln -f /system/lib/libstdc++.so /vendor/lib/libstdc++.so
+    exec -- /bin/ln -f /system/lib64/libstdc++.so /vendor/lib64/libstdc++.so

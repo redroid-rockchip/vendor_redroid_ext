@@ -8,6 +8,7 @@ PRODUCT_COPY_FILES += \
 
 PRODUCT_PACKAGES += libstdc++.vendor
 
+
 ######################
 # 显卡相关配置
 ######################
@@ -59,7 +60,15 @@ $(call inherit-product, device/rockchip/common/rootdir/rootdir.mk)
 $(call inherit-product, device/rockchip/common/modules/mediacodec.mk)
 $(call inherit-product, vendor/rockchip/common/device-vendor.mk)
 
+
 ######################
 # gms相关配置
 ######################
 $(call inherit-product-if-exists, vendor/gapps/arm64/arm64-vendor.mk)
+
+
+######################
+# zygisk
+######################
+$(call inherit-product-if-exists, vendor/magisk/device.mk)
+

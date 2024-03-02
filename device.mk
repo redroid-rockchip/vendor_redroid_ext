@@ -3,8 +3,10 @@ include vendor/redroid_ext/BoardConfig.mk
 ######################
 # 通用配置
 ######################
+PRODUCT_BROKEN_VERIFY_USES_LIBRARIES := true
+
 PRODUCT_COPY_FILES += \
-    vendor/redroid_ext/redroid.rockchip.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/redroid.rockchip.rc \
+    vendor/redroid_ext/redroid.ext.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/redroid.ext.rc \
 
 PRODUCT_PACKAGES += libstdc++.vendor
 
@@ -62,6 +64,38 @@ $(call inherit-product, vendor/rockchip/common/device-vendor.mk)
 
 
 ######################
+# wifi相关配置
+######################
+PRODUCT_SOONG_NAMESPACES += \
+    device/generic/goldfish \
+
+PRODUCT_PACKAGES += \
+    iw_vendor \
+    emulatorip2 \
+    dhcpclient \
+    dhcpserver2 \
+
+PRODUCT_PACKAGES += \
+    mac80211_create_radios \
+    createns \
+    execns \
+    hostapd \
+    hostapd_nohidl \
+    ipv6proxy \
+    wpa_supplicant \
+
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/wifi/init.redroid-net.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.redroid-net.sh \
+    $(LOCAL_PATH)/wifi/init.wifi.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.wifi.sh \
+    $(LOCAL_PATH)/wifi/init.wifi.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/init.wifi.rc \
+    device/generic/goldfish/wifi/simulated_hostapd.conf:$(TARGET_COPY_OUT_VENDOR)/etc/simulated_hostapd.conf \
+    device/generic/goldfish/wifi/wpa_supplicant.conf:$(TARGET_COPY_OUT_VENDOR)/etc/wifi/wpa_supplicant.conf \
+    frameworks/native/data/etc/android.hardware.wifi.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.xml \
+    frameworks/native/data/etc/android.hardware.wifi.passpoint.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.passpoint.xml \
+    frameworks/native/data/etc/android.hardware.wifi.direct.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.direct.xml \
+
+
+######################
 # gms相关配置
 ######################
 $(call inherit-product-if-exists, vendor/gapps/arm64/arm64-vendor.mk)
@@ -71,4 +105,3 @@ $(call inherit-product-if-exists, vendor/gapps/arm64/arm64-vendor.mk)
 # zygisk
 ######################
 $(call inherit-product-if-exists, vendor/magisk/device.mk)
-

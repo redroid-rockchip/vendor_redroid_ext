@@ -1,0 +1,83 @@
+on post-fs-data
+    setprop vold.post_fs_data_done 1
+    mkdir /data/vendor/var 0755 root root
+    mkdir /data/vendor/var/run 0755 root root
+    mkdir /data/vendor/var/run/netns 0755 root root
+
+    setprop wifi.interface wlan0
+    setprop wifi.direct.interface p2p-dev-wlan0
+
+    setprop net.eth0.dns3 8.8.8.8
+    setprop net.eth0.dns4 8.8.4.4
+
+on zygote-start
+    # Create the directories used by the Wireless subsystem
+    mkdir /data/vendor/wifi 0771 wifi wifi
+    mkdir /data/vendor/wifi/wpa 0770 wifi wifi
+    mkdir /data/vendor/wifi/wpa/sockets 0770 wifi wifi
+
+on boot && property:ro.boot.redroid_virtiowifi=1
+    stop adbd
+    start adbd-wifi
+
+on post-fs-data && property:ro.boot.redroid_virtiowifi=1
+    start create_router_ns
+
+on post-fs-data && property:ro.boot.redroid_virtiowifi=1
+    start redroid-net
+
+service redroid-net /vendor/bin/init.redroid-net.sh
+    class late_start
+    user root
+    group root wakelock wifi
+    oneshot
+    disabled    # Started on post-fs-data
+
+service emu_hostapd /vendor/bin/execns router /vendor/bin/hostapd_nohidl /data/vendor/wifi/hostapd/hostapd.conf
+    user root
+    group root wifi net_raw net_admin
+    disabled
+
+service dhcpserver /vendor/bin/execns router /vendor/bin/dhcpserver2 --exclude-interface eth0
+    user root
+    group root
+    disabled
+
+service create_router_ns /vendor/bin/createns router
+    user root
+    group root
+    disabled
+    oneshot
+
+service dhcpclient_rtr /vendor/bin/dhcpclient -i radio0 --no-gateway
+    user root
+    group root
+    disabled
+
+service dhcpclient_wifi /vendor/bin/dhcpclient -i wlan0 --no-gateway
+    user root
+    group root
+    disabled
+
+on property:vendor.network.bridged=1
+    start dhcpclient_rtr
+
+service dhcpclient_def /vendor/bin/dhcpclient -i eth0 --no-gateway
+    user root
+    group root
+    disabled
+
+service wpa_supplicant /vendor/bin/hw/wpa_supplicant -Dnl80211 -iwlan0 -c/vendor/etc/wifi/wpa_supplicant.conf -g@android:wpa_wlan0
+    interface android.hardware.wifi.supplicant@1.0::ISupplicant default
+    interface android.hardware.wifi.supplicant@1.1::ISupplicant default
+    interface android.hardware.wifi.supplicant@1.2::ISupplicant default
+    interface android.hardware.wifi.supplicant@1.3::ISupplicant default
+    socket wpa_wlan0 dgram 660 wifi wifi
+    group system wifi inet
+    oneshot
+    disabled
+
+service adbd-wifi /vendor/bin/execns router /apex/com.android.adbd/bin/adbd --root_seclabel=u:r:su:s0
+    socket adbd seqpacket 660 system system
+    disabled
+    seclabel u:r:adbd:s0

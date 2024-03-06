@@ -100,6 +100,10 @@ PRODUCT_COPY_FILES += \
 ######################
 $(call inherit-product-if-exists, vendor/gapps/arm64/arm64-vendor.mk)
 
+# disable setupwizard
+PRODUCT_SYSTEM_EXT_PROPERTIES += \
+    ro.setupwizard.mode=DISABLED
+
 
 ######################
 # zygisk

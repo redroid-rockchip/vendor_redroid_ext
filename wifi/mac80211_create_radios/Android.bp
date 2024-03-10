@@ -1,0 +1,24 @@
+// package {
+//     // See: http://go/android-license-faq
+//     // A large-scale-change added 'default_applicable_licenses' to import
+//     // all of the 'license_kinds' from "device_generic_goldfish_license"
+//     // to get the below license kinds:
+//     //   SPDX-license-identifier-Apache-2.0
+//     default_applicable_licenses: ["device_generic_goldfish_license"],
+// }
+
+cc_binary {
+    name: "create_radios2",
+    vendor: true,
+    cppflags: [
+             "-Wall",
+             "-Werror",
+             "--std=c++17",
+            ],
+    srcs: ["main.cpp",],
+    shared_libs: [
+        "libcutils",
+        "liblog",
+        "libnl",
+    ],
+}

@@ -3,20 +3,22 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
-	dhcpserver.cpp \
+	address.cpp \
+	interface.cpp \
+	log.cpp \
 	main.cpp \
-	../common/message.cpp \
-	../common/socket.cpp \
-	../common/utils.cpp \
+	namespace.cpp \
+	packet.cpp \
+	proxy.cpp \
+	router.cpp \
+	socket.cpp \
 
 
 LOCAL_CPPFLAGS += -Werror
-LOCAL_C_INCLUDES += $(LOCAL_PATH)/../common/include
 LOCAL_SHARED_LIBRARIES := libcutils liblog
 LOCAL_PROPRIETARY_MODULE := true
-LOCAL_MODULE := dhcpserver2
+LOCAL_MODULE := ipv6proxy2
 
 LOCAL_MODULE_CLASS := EXECUTABLES
 
 include $(BUILD_EXECUTABLE)
-

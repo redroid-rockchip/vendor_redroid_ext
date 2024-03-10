@@ -16,56 +16,41 @@ on zygote-start
     mkdir /data/vendor/wifi 0771 wifi wifi
     mkdir /data/vendor/wifi/wpa 0770 wifi wifi
     mkdir /data/vendor/wifi/wpa/sockets 0770 wifi wifi
-
-on boot && property:ro.boot.redroid_virtiowifi=1
-    start adbd-wifi
+    mkdir /data/vendor/wifi/hostapd 0770 wifi wifi
 
 on post-fs-data && property:ro.boot.redroid_virtiowifi=1
+    rm /data/vendor/var/run/netns/router.pid
     start create_router_ns
+    wait /data/vendor/var/run/netns/router.pid
+    start redroid_wifi
 
-on post-fs-data && property:ro.boot.redroid_virtiowifi=1
-    start redroid-net
-
-service redroid-net /vendor/bin/init.redroid-net.sh
+service redroid_wifi /vendor/bin/init.redroid.wifi.sh
     class late_start
     user root
     group root wakelock wifi
     oneshot
     disabled    # Started on post-fs-data
 
-service emu_hostapd /vendor/bin/execns router /vendor/bin/hostapd_nohidl /data/vendor/wifi/hostapd/hostapd.conf
+service ipv6proxy /vendor/bin/execns2 router /vendor/bin/ipv6proxy2 -o eth0 -i br0,radio0-peer
+    user root
+    group root
+    disabled
+
+service emu_hostapd /vendor/bin/execns2 router /vendor/bin/hostapd_nohidl /data/vendor/wifi/hostapd/redroid_hostapd.conf
     user root
     group root wifi net_raw net_admin
     disabled
 
-service dhcpserver /vendor/bin/execns router /vendor/bin/dhcpserver2 --exclude-interface eth0
+service dhcpserver /vendor/bin/execns2 router /vendor/bin/dhcpserver2 --exclude-interface eth0
     user root
     group root
     disabled
 
-service create_router_ns /vendor/bin/createns router
+service create_router_ns /vendor/bin/createns2 router
     user root
     group root
     disabled
     oneshot
-
-service dhcpclient_rtr /vendor/bin/dhcpclient -i radio0 --no-gateway
-    user root
-    group root
-    disabled
-
-service dhcpclient_wifi /vendor/bin/dhcpclient -i wlan0 --no-gateway
-    user root
-    group root
-    disabled
-
-on property:vendor.network.bridged=1
-    start dhcpclient_rtr
-
-service dhcpclient_def /vendor/bin/dhcpclient -i eth0 --no-gateway
-    user root
-    group root
-    disabled
 
 service wpa_supplicant /vendor/bin/hw/wpa_supplicant -Dnl80211 -iwlan0 -c/vendor/etc/wifi/wpa_supplicant.conf -g@android:wpa_wlan0
     interface android.hardware.wifi.supplicant@1.0::ISupplicant default
@@ -77,7 +62,7 @@ service wpa_supplicant /vendor/bin/hw/wpa_supplicant -Dnl80211 -iwlan0 -c/vendor
     oneshot
     disabled
 
-service adbd-wifi /vendor/bin/execns router nc -L -p 5555 /vendor/bin/execns main nc 127.0.0.1 5555
+service adbd2 /vendor/bin/execns2 router nc -L -p 5555 /vendor/bin/execns2 main nc 127.0.0.1 5555
     user root
     group root
     disabled

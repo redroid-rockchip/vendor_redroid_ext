@@ -22,9 +22,6 @@ on early-init
     chmod 0444 /dev/dma_heap/system-uncached-dma32
     chown system system /dev/dma_heap/system-uncached-dma32
 
-on init
-    setprop ro.setupwizard.mode DISABLED
-
 on post-fs
     exec -- /bin/ln -f /system/lib/libstdc++.so /vendor/lib/libstdc++.so
     exec -- /bin/ln -f /system/lib64/libstdc++.so /vendor/lib64/libstdc++.so

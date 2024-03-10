@@ -23,8 +23,6 @@
 
 static uint32_t sNextTransactionId = 1;
 
-static const ptrdiff_t kOptionOffset = 7;
-
 // The default lease time in seconds
 static const uint32_t kDefaultLeaseTime = 10 * 60;
 

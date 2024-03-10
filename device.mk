@@ -8,12 +8,12 @@ PRODUCT_BROKEN_VERIFY_USES_LIBRARIES := true
 PRODUCT_COPY_FILES += \
     vendor/redroid_ext/redroid.ext.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/redroid.ext.rc \
 
-PRODUCT_PACKAGES += libstdc++.vendor
-
 
 ######################
 # 显卡相关配置
 ######################
+PRODUCT_PACKAGES += libstdc++.vendor  # for libmpp.so, but not available
+
 ifneq (,$(filter  mali-tDVx mali-G52 mali-G610, $(TARGET_BOARD_PLATFORM_GPU)))
 BOARD_VENDOR_GPU_PLATFORM := bifrost
 endif
@@ -71,25 +71,23 @@ PRODUCT_SOONG_NAMESPACES += \
 
 PRODUCT_PACKAGES += \
     iw_vendor \
-    emulatorip2 \
-    dhcpclient \
+    dhcpclient2 \
     dhcpserver2 \
 
 PRODUCT_PACKAGES += \
-    mac80211_create_radios \
-    createns \
-    execns \
+    create_radios2 \
+    createns2 \
+    execns2 \
+    ipv6proxy2 \
     hostapd \
     hostapd_nohidl \
-    ipv6proxy \
     wpa_supplicant \
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/wifi/init.redroid-net.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.redroid-net.sh \
-    $(LOCAL_PATH)/wifi/init.wifi.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.wifi.sh \
-    $(LOCAL_PATH)/wifi/init.wifi.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/init.wifi.rc \
-    device/generic/goldfish/wifi/simulated_hostapd.conf:$(TARGET_COPY_OUT_VENDOR)/etc/simulated_hostapd.conf \
-    device/generic/goldfish/wifi/wpa_supplicant.conf:$(TARGET_COPY_OUT_VENDOR)/etc/wifi/wpa_supplicant.conf \
+    $(LOCAL_PATH)/wifi/init.redroid.wifi.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.redroid.wifi.sh \
+    $(LOCAL_PATH)/wifi/init.redroid.wifi.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/init.redroid.wifi.rc \
+    $(LOCAL_PATH)/wifi/hostapd.conf:$(TARGET_COPY_OUT_VENDOR)/etc/hostapd.conf \
+    $(LOCAL_PATH)/wifi/wpa_supplicant.conf:$(TARGET_COPY_OUT_VENDOR)/etc/wifi/wpa_supplicant.conf \
     frameworks/native/data/etc/android.hardware.wifi.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.xml \
     frameworks/native/data/etc/android.hardware.wifi.passpoint.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.passpoint.xml \
     frameworks/native/data/etc/android.hardware.wifi.direct.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.direct.xml \

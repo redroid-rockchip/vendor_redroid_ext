@@ -48,48 +48,55 @@ NAMESPACE="router"
 # to access the namespace.
 PID=$(</data/vendor/var/run/netns/${NAMESPACE}.pid)
 
-ETH0_ADDR=$(/vendor/bin/ip addr show dev eth0 | grep 'inet ' | awk '{print $2,$3,$4}')
-ETH0_GW=$(/vendor/bin/ip route get 8.8.8.8 | head -n 1 | awk '{print $3}')
-WLAN1_PHY=phy$(/vendor/bin/iw dev wlan1 info | awk -F 'wiphy +' '{print $2}' | awk NF)
+WIFI_MAC_PREFIX=`getprop ro.boot.redroid_wifi_mac_prefix`
+if [ ! -n "$WIFI_MAC_PREFIX" ]; then WIFI_MAC_PREFIX=`expr $RANDOM % 65535`; fi
+/vendor/bin/create_radios2 2 $WIFI_MAC_PREFIX || exit 1
 
-/vendor/bin/ip link set eth0 netns ${PID}
-/vendor/bin/execns ${NAMESPACE} /vendor/bin/ip link set eth0 up
-/vendor/bin/execns ${NAMESPACE} /vendor/bin/ip addr add ${ETH0_ADDR} dev eth0
-/vendor/bin/execns ${NAMESPACE} /vendor/bin/ip route add default via ${ETH0_GW} dev eth0
+ETH0_ADDR=$(/system/bin/ip addr show dev eth0 | grep 'inet ' | awk '{print $2,$3,$4}')
+ETH0_GW=$(/system/bin/ip route get 8.8.8.8 | head -n 1 | awk '{print $3}')
+/system/bin/ip link set eth0 netns ${PID}
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set eth0 up
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/ip addr add ${ETH0_ADDR} dev eth0
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/ip route add default via ${ETH0_GW} dev eth0
 
-/vendor/bin/ip link add radio0 type veth peer name radio0-peer netns ${PID}
+/system/bin/ip link add radio0 type veth peer name radio0-peer netns ${PID}
 
 # Enable privacy addresses for radio0, this is done by the framework for wlan0
 sysctl -wq net.ipv6.conf.radio0.use_tempaddr=2
 
-/vendor/bin/ip addr add 192.168.200.2/24 broadcast 192.168.200.255 dev radio0
-/vendor/bin/execns ${NAMESPACE} /vendor/bin/ip addr add 192.168.200.1/24 dev radio0-peer
-/vendor/bin/execns ${NAMESPACE} sysctl -wq net.ipv6.conf.all.forwarding=1
-/vendor/bin/execns ${NAMESPACE} /vendor/bin/ip link set radio0-peer up
+/system/bin/ip addr add 192.168.200.2/24 broadcast 192.168.200.255 dev radio0
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/ip addr add 192.168.200.1/24 dev radio0-peer
+/vendor/bin/execns2 ${NAMESPACE} sysctl -wq net.ipv6.conf.all.forwarding=1
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set radio0-peer up
 
-/vendor/bin/execns ${NAMESPACE} /vendor/bin/ip link set eth0 up
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set eth0 up
 
-/vendor/bin/execns ${NAMESPACE} /system/bin/iptables -w -W 50000 -t nat -A POSTROUTING -s 192.168.232.0/21 -o eth0 -j MASQUERADE
-/vendor/bin/execns ${NAMESPACE} /system/bin/iptables -w -W 50000 -t nat -A POSTROUTING -s 192.168.200.0/24 -o eth0 -j MASQUERADE
-/vendor/bin/ip link set radio0 up
+# Start the ADB daemon in the router namespace
+setprop ctl.start adbd2
 
-/vendor/bin/iw phy ${WLAN1_PHY} set netns ${PID}
-/vendor/bin/execns ${NAMESPACE} /vendor/bin/ip addr add 192.168.232.1/21 dev wlan1
-/vendor/bin/execns ${NAMESPACE} /vendor/bin/ip link set wlan1 mtu 1400
-/vendor/bin/execns ${NAMESPACE} /vendor/bin/ip link set wlan1 up
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/iptables -w -W 50000 -t nat -A POSTROUTING -s 192.168.0.0/17 -o eth0 -j MASQUERADE
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/iptables -w -W 50000 -t nat -A POSTROUTING -s 192.168.200.0/24 -o eth0 -j MASQUERADE
+/system/bin/ip link set radio0 up
 
-# setprop ctl.start netmgr
+/vendor/bin/iw phy phy$(/vendor/bin/iw dev wlan1 info | awk -F 'wiphy +' '{print $2}' | awk NF) set netns ${PID}
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set wlan1 up
 
-# setprop ctl.start wifi_forwarder
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link add name br0 type bridge
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/ip addr add 192.168.1.1/24 dev br0
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set br0 mtu 1400
+/vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set br0 up
 
-# If this is a clean boot we need to copy the hostapd configuration file to the
-# data partition where netmgr can change it if needed. If it already exists we
-# need to preserve the existing settings.
-if [ ! -f /data/vendor/wifi/hostapd/hostapd.conf ]; then
-    cp /vendor/etc/simulated_hostapd.conf /data/vendor/wifi/hostapd/hostapd.conf
-    chown wifi:wifi /data/vendor/wifi/hostapd/hostapd.conf
-    chmod 660 /data/vendor/wifi/hostapd/hostapd.conf
-fi
+# Start the IPv6 proxy that will enable use of IPv6 in the main namespace
+setprop ctl.start ipv6proxy
+
+# Copy the hostapd configuration file to the data partition
+SED_ARGS=""
+for i in $(seq 1 10)
+    do SED_ARGS="$SED_ARGS -e 's/<bssid$i>/00:$(echo $RANDOM | md5sum | sed 's/../&:/g' | cut -c 1-14)/'"
+done
+echo sed $SED_ARGS /vendor/etc/hostapd.conf | sh > /data/vendor/wifi/hostapd/redroid_hostapd.conf
+chown wifi:wifi /data/vendor/wifi/hostapd/redroid_hostapd.conf
+chmod 660 /data/vendor/wifi/hostapd/redroid_hostapd.conf
 
 # Start hostapd, the access point software
 setprop ctl.start emu_hostapd

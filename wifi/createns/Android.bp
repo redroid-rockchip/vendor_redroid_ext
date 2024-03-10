@@ -21,28 +21,17 @@
 //     default_applicable_licenses: ["device_generic_goldfish_license"],
 // }
 
-cc_prebuilt_binary {
-    name: "emulatorip2",
-    arch: {
-        arm64: {
-            srcs: ["arm64/emulatorip"],
-        },
-        x86: {
-            srcs: ["x86/emulatorip"],
-        },
-        x86_64: {
-            srcs: ["x86_64/emulatorip"],
-        },
-    },
-    stem: "ip",
-    shared_libs: [
-        "libc",
-        "libc++",
-        "libdl",
-        "libm",
+cc_binary {
+    name: "createns2",
+    srcs: ["createns.cpp"],
+    cflags: [
+        "-Wall",
+        "-Wextra",
+        "-Werror",
     ],
-    vendor: true,
-    strip: {
-        none: true,
-    },
+    shared_libs: [
+        "libcutils",
+        "liblog",
+    ],
+    proprietary: true,
 }

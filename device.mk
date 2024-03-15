@@ -94,6 +94,28 @@ PRODUCT_COPY_FILES += \
 
 
 ######################
+# 电源相关配置
+######################
+
+#
+# Power HAL
+#
+PRODUCT_PACKAGES += \
+    android.hardware.power-service.example
+
+#
+# PowerStats HAL
+#
+PRODUCT_PACKAGES += \
+    android.hardware.power.stats-service.example
+
+
+PRODUCT_COPY_FILES += \
+    vendor/redroid_ext/battery/init.redroid.battery.sh:$(TARGET_COPY_OUT_VENDOR)/etc/bin/init.redroid.battery.sh \
+    $(call find-copy-subdir-files,*,vendor/redroid_ext/battery/power_supply,$(TARGET_COPY_OUT_VENDOR)/etc/init/battery/power_supply) \
+
+
+######################
 # gms相关配置
 ######################
 $(call inherit-product-if-exists, vendor/gapps/arm64/arm64-vendor.mk)

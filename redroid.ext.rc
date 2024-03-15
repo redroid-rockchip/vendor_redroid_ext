@@ -25,3 +25,7 @@ on early-init
 on post-fs
     exec -- /bin/ln -f /system/lib/libstdc++.so /vendor/lib/libstdc++.so
     exec -- /bin/ln -f /system/lib64/libstdc++.so /vendor/lib64/libstdc++.so
+
+on post-fs-data
+    mkdir /data/vendor/battery 0700 root root
+    exec -- /system/bin/sh /vendor/etc/bin/init.redroid.battery.sh

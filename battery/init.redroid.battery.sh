@@ -1,6 +1,6 @@
 #!/vendor/bin/sh
 
-SRC_PATH=/vendor/etc/init/battery/power_supply
+SRC_PATH=/vendor/etc/init/hw/battery/power_supply
 DEST_PATH=/data/vendor/battery/power_supply
 
 copy_files() {
@@ -12,6 +12,7 @@ copy_files() {
     fi
     rm -rf $DEST_PATH
     cp -r $SRC_PATH $DEST_PATH
+    echo `expr 80 + $RANDOM % 20` > $DEST_PATH/battery/capacity
     chmod -R 777 $DEST_PATH
 }
 

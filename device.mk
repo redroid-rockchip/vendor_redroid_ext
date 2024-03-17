@@ -1,7 +1,7 @@
 include vendor/redroid_ext/BoardConfig.mk
 
 ######################
-# 通用配置
+# common config
 ######################
 PRODUCT_BROKEN_VERIFY_USES_LIBRARIES := true
 
@@ -10,9 +10,9 @@ PRODUCT_COPY_FILES += \
 
 
 ######################
-# 显卡相关配置
+# mali config
 ######################
-PRODUCT_PACKAGES += libstdc++.vendor  # for libmpp.so, but not available
+PRODUCT_PACKAGES += libstdc++.vendor  # https://github.com/redroid-rockchip/aosp_bionic/commit/13123f0a99dba389dd2ed7571acc2ee2a5844dd5
 
 ifneq (,$(filter  mali-tDVx mali-G52 mali-G610, $(TARGET_BOARD_PLATFORM_GPU)))
 BOARD_VENDOR_GPU_PLATFORM := bifrost
@@ -64,7 +64,7 @@ $(call inherit-product, vendor/rockchip/common/device-vendor.mk)
 
 
 ######################
-# wifi相关配置
+# wifi config
 ######################
 PRODUCT_SOONG_NAMESPACES += \
     device/generic/goldfish \
@@ -84,8 +84,7 @@ PRODUCT_PACKAGES += \
     wpa_supplicant \
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/wifi/init.redroid.wifi.sh:$(TARGET_COPY_OUT_VENDOR)/bin/init.redroid.wifi.sh \
-    $(LOCAL_PATH)/wifi/init.redroid.wifi.rc:$(TARGET_COPY_OUT_VENDOR)/etc/init/init.redroid.wifi.rc \
+    $(LOCAL_PATH)/wifi/init.redroid.wifi.sh:$(TARGET_COPY_OUT_VENDOR)/bin/hw/init.redroid.wifi.sh \
     $(LOCAL_PATH)/wifi/hostapd.conf:$(TARGET_COPY_OUT_VENDOR)/etc/hostapd.conf \
     $(LOCAL_PATH)/wifi/wpa_supplicant.conf:$(TARGET_COPY_OUT_VENDOR)/etc/wifi/wpa_supplicant.conf \
     frameworks/native/data/etc/android.hardware.wifi.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.xml \
@@ -94,9 +93,8 @@ PRODUCT_COPY_FILES += \
 
 
 ######################
-# 电源相关配置
+# battery config
 ######################
-
 #
 # Power HAL
 #
@@ -109,14 +107,23 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     android.hardware.power.stats-service.example
 
-
 PRODUCT_COPY_FILES += \
-    vendor/redroid_ext/battery/init.redroid.battery.sh:$(TARGET_COPY_OUT_VENDOR)/etc/bin/init.redroid.battery.sh \
-    $(call find-copy-subdir-files,*,vendor/redroid_ext/battery/power_supply,$(TARGET_COPY_OUT_VENDOR)/etc/init/battery/power_supply) \
+    vendor/redroid_ext/battery/init.redroid.battery.sh:$(TARGET_COPY_OUT_VENDOR)/etc/bin/hw/init.redroid.battery.sh \
+    $(call find-copy-subdir-files,*,vendor/redroid_ext/battery/power_supply,$(TARGET_COPY_OUT_VENDOR)/etc/init/hw/battery/power_supply) \
 
 
 ######################
-# gms相关配置
+# gps config
+######################
+PRODUCT_PACKAGES += \
+    android.hardware.gnss-service
+
+PRODUCT_COPY_FILES += \
+    vendor/redroid_ext/gps/init.redroid.gps.sh:$(TARGET_COPY_OUT_VENDOR)/etc/bin/hw/init.redroid.gps.sh \
+
+
+######################
+# gms config
 ######################
 $(call inherit-product-if-exists, vendor/gapps/arm64/arm64-vendor.mk)
 
@@ -126,6 +133,6 @@ PRODUCT_SYSTEM_EXT_PROPERTIES += \
 
 
 ######################
-# zygisk
+# zygisk config
 ######################
 $(call inherit-product-if-exists, vendor/magisk/device.mk)

@@ -72,7 +72,7 @@ sysctl -wq net.ipv6.conf.radio0.use_tempaddr=2
 /vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set eth0 up
 
 # Start the ADB daemon in the router namespace
-setprop ctl.start adbd2
+setprop ctl.start adbd_proxy
 
 /vendor/bin/execns2 ${NAMESPACE} /system/bin/iptables -w -W 50000 -t nat -A POSTROUTING -s 192.168.0.0/17 -o eth0 -j MASQUERADE
 /vendor/bin/execns2 ${NAMESPACE} /system/bin/iptables -w -W 50000 -t nat -A POSTROUTING -s 192.168.200.0/24 -o eth0 -j MASQUERADE

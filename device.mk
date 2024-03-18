@@ -108,7 +108,7 @@ PRODUCT_PACKAGES += \
     android.hardware.power.stats-service.example
 
 PRODUCT_COPY_FILES += \
-    vendor/redroid_ext/battery/init.redroid.battery.sh:$(TARGET_COPY_OUT_VENDOR)/etc/bin/hw/init.redroid.battery.sh \
+    vendor/redroid_ext/battery/init.redroid.battery.sh:$(TARGET_COPY_OUT_VENDOR)/bin/hw/init.redroid.battery.sh \
     $(call find-copy-subdir-files,*,vendor/redroid_ext/battery/power_supply,$(TARGET_COPY_OUT_VENDOR)/etc/init/hw/battery/power_supply) \
 
 
@@ -119,7 +119,7 @@ PRODUCT_PACKAGES += \
     android.hardware.gnss-service
 
 PRODUCT_COPY_FILES += \
-    vendor/redroid_ext/gps/init.redroid.gps.sh:$(TARGET_COPY_OUT_VENDOR)/etc/bin/hw/init.redroid.gps.sh \
+    vendor/redroid_ext/gps/init.redroid.gps.sh:$(TARGET_COPY_OUT_VENDOR)/bin/hw/init.redroid.gps.sh \
 
 
 ######################

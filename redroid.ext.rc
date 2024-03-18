@@ -31,7 +31,7 @@ on early-init
 ######################
 on post-fs-data
     mkdir /data/vendor/battery 0751 root root
-    exec -- /system/bin/sh /vendor/etc/bin/hw/init.redroid.battery.sh
+    exec -- /system/bin/sh /vendor/bin/hw/init.redroid.battery.sh
 
 
 ######################
@@ -39,7 +39,7 @@ on post-fs-data
 ######################
 on post-fs-data
     mkdir /data/vendor/gps 0751 root root
-    exec -- /system/bin/sh /vendor/etc/bin/hw/init.redroid.gps.sh
+    exec -- /system/bin/sh /vendor/bin/hw/init.redroid.gps.sh
 
 service gnss /vendor/bin/hw/android.hardware.gnss-service
     class hal

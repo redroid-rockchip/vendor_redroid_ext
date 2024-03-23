@@ -211,6 +211,7 @@ std::unique_ptr<V2_0::GnssLocation> GnssTemplate<T_IGnss>::getLocationFromHW() {
                 timestamp = std::stol(item.substr(strlen("Timestamp=")));
             }
         }
+        close(gnss_fd);
     } else {
         ALOGW("Failed to open %s errno: %d", gnss_dev_path, errno);
     }

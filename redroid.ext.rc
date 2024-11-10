@@ -1,4 +1,13 @@
 ######################
+# for https://github.com/remote-android/redroid-doc/issues/354
+######################
+# /vendor/etc/init/redroid.common.rc
+# potential leak fuse connections
+
+on late-init
+    umount /sys/fs/fuse/connections
+
+######################
 # for mali
 ######################
 on early-init

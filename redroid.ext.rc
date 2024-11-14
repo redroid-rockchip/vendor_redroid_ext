@@ -79,7 +79,7 @@ on zygote-start
     mkdir /data/vendor/wifi/wpa/sockets 0770 wifi wifi
     mkdir /data/vendor/wifi/hostapd 0770 wifi wifi
 
-on post-fs-data && property:ro.boot.redroid_virtual_wifi=1
+on post-fs-data && property:ro.boot.redroid_wifi=1
     rm /data/vendor/var/run/netns/router.pid
     start create_router_ns
     wait /data/vendor/var/run/netns/router.pid

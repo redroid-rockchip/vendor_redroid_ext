@@ -66,19 +66,18 @@ $(call inherit-product, vendor/rockchip/common/device-vendor.mk)
 ######################
 # wifi config
 ######################
+
 PRODUCT_SOONG_NAMESPACES += \
     device/generic/goldfish \
 
-PRODUCT_PACKAGES += \
-    iw_vendor \
-    dhcpclient2 \
-    dhcpserver2 \
+PRODUCT_VENDOR_PROPERTIES += \
+    wifi.direct.interface=p2p-dev-wlan0 \
+    wifi.interface=wlan0 \
 
 PRODUCT_PACKAGES += \
+    android.hardware.wifi-service \
     create_radios2 \
-    createns2 \
-    execns2 \
-    ipv6proxy2 \
+    dhcpclient2 \
     hostapd \
     hostapd_nohidl \
     wpa_supplicant \
@@ -90,6 +89,35 @@ PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.wifi.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.xml \
     frameworks/native/data/etc/android.hardware.wifi.passpoint.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.passpoint.xml \
     frameworks/native/data/etc/android.hardware.wifi.direct.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.direct.xml \
+
+
+######################
+# wifi-ns config
+######################
+# PRODUCT_SOONG_NAMESPACES += \
+#     device/generic/goldfish \
+#
+# PRODUCT_PACKAGES += \
+#     iw_vendor \
+#     dhcpclient2 \
+#     dhcpserver2 \
+#
+# PRODUCT_PACKAGES += \
+#     create_radios2 \
+#     createns2 \
+#     execns2 \
+#     ipv6proxy2 \
+#     hostapd \
+#     hostapd_nohidl \
+#     wpa_supplicant \
+#
+# PRODUCT_COPY_FILES += \
+#     $(LOCAL_PATH)/wifi-ns/init.redroid.wifi.sh:$(TARGET_COPY_OUT_VENDOR)/bin/hw/init.redroid.wifi.sh \
+#     $(LOCAL_PATH)/wifi-ns/hostapd.conf:$(TARGET_COPY_OUT_VENDOR)/etc/hostapd.conf \
+#     $(LOCAL_PATH)/wifi-ns/wpa_supplicant.conf:$(TARGET_COPY_OUT_VENDOR)/etc/wifi/wpa_supplicant.conf \
+#     frameworks/native/data/etc/android.hardware.wifi.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.xml \
+#     frameworks/native/data/etc/android.hardware.wifi.passpoint.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.passpoint.xml \
+#     frameworks/native/data/etc/android.hardware.wifi.direct.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.direct.xml \
 
 
 ######################

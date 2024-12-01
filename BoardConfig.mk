@@ -12,6 +12,7 @@ PRODUCT_HAVE_RKVPU := true
 # ALLOW_MISSING_DEPENDENCIES := true
 BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
 BUILD_BROKEN_DUP_RULES := true
+BOARD_VINTF_CHECK_ENABLED := false
 
 include device/rockchip/common/gralloc.device.mk
 

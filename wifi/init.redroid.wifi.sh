@@ -64,6 +64,8 @@ ETH0_GW=$(/system/bin/ip route get 8.8.8.8 | head -n 1 | awk '{print $3}')
 /system/bin/ip link add radio0 type veth peer name radio0-peer netns ${PID}
 /system/bin/ip addr add 7.8.8.2/24 dev radio0
 /system/bin/ip link set radio0 up
+/system/bin/ip rule add from all lookup main pref 5000
+/system/bin/ip route add default via 7.8.8.1 dev radio0
 # Enable privacy addresses for radio0, this is done by the framework for wlan0
 sysctl -wq net.ipv6.conf.radio0.use_tempaddr=2
 

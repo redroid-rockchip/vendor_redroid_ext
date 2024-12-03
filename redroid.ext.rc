@@ -57,7 +57,7 @@ service gnss /vendor/bin/hw/android.hardware.gnss-service
 
 
 ######################
-# for wifi
+# for network
 ######################
 on post-fs-data
     setprop vold.post_fs_data_done 1
@@ -72,42 +72,46 @@ on post-fs-data
     setprop net.eth0.dns3 8.8.8.8
     setprop net.eth0.dns4 8.8.4.4
 
-on zygote-start
     # Create the directories used by the Wireless subsystem
     mkdir /data/vendor/wifi 0771 wifi wifi
     mkdir /data/vendor/wifi/wpa 0770 wifi wifi
     mkdir /data/vendor/wifi/wpa/sockets 0770 wifi wifi
     mkdir /data/vendor/wifi/hostapd 0770 wifi wifi
 
-on post-fs-data && property:ro.boot.redroid_wifi=1
-    rm /data/vendor/var/run/netns/router.pid
-    start create_router_ns
-    wait /data/vendor/var/run/netns/router.pid
-    start redroid_wifi
+    start redroid_net
 
-service redroid_wifi /vendor/bin/hw/init.redroid.wifi.sh
+service redroid_net /vendor/bin/hw/init.redroid.net.sh
     class late_start
     user root
     group root wakelock wifi
     oneshot
     disabled    # Started on post-fs-data
 
-service ipv6proxy /vendor/bin/execns2 router /vendor/bin/ipv6proxy2 -o eth0 -i br0,radio0-peer
+service redroid_ipv6proxy /vendor/bin/execns2 router /vendor/bin/ipv6proxy2 -o eth0 -i br0,radio0-peer
     user root
     group root
     disabled
 
-service emu_hostapd /vendor/bin/execns2 router /vendor/bin/hostapd_nohidl /data/vendor/wifi/hostapd/redroid_hostapd.conf
+service adbd_proxy /vendor/bin/execns2 router nc -L -p 5555 /vendor/bin/execns2 main nc 127.0.0.1 5555
+    user root
+    group root
+    disabled
+    oneshot
+
+######################
+# for wifi
+######################
+service redroid_hostapd /vendor/bin/execns2 router /vendor/bin/hostapd_nohidl /data/vendor/wifi/hostapd/redroid_hostapd.conf
     user root
     group root wifi net_raw net_admin
     disabled
 
-service dhcpserver /vendor/bin/execns2 router /vendor/bin/dhcpserver2 --exclude-interface eth0
+service redroid_dhcpserver /vendor/bin/execns2 router /vendor/bin/dhcpserver2 --exclude-interface eth0
     user root
-    group root
+    group root wifi net_raw net_admin
     disabled
 
-service create_router_ns /vendor/bin/createns2 router
+service redroid_router_ns /vendor/bin/createns2 router
     user root
     group root
     disabled
@@ -122,9 +126,3 @@ service wpa_supplicant /vendor/bin/hw/wpa_supplicant -Dnl80211 -iwlan0 -c/vendor
     group system wifi inet
     oneshot
     disabled
-
-service adbd_proxy /vendor/bin/execns2 router nc -L -p 5555 /vendor/bin/execns2 main nc 127.0.0.1 5555
-    user root
-    group root
-    disabled
-    oneshot

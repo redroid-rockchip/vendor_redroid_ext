@@ -64,6 +64,17 @@ $(call inherit-product, vendor/rockchip/common/device-vendor.mk)
 
 
 ######################
+# network config
+######################
+PRODUCT_PACKAGES += \
+    createns2 \
+    execns2 \
+
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/network/init.redroid.net.sh:$(TARGET_COPY_OUT_VENDOR)/bin/hw/init.redroid.net.sh \
+
+
+######################
 # wifi config
 ######################
 PRODUCT_SOONG_NAMESPACES += \
@@ -76,15 +87,12 @@ PRODUCT_PACKAGES += \
 
 PRODUCT_PACKAGES += \
     create_radios2 \
-    createns2 \
-    execns2 \
     ipv6proxy2 \
     hostapd \
     hostapd_nohidl \
     wpa_supplicant \
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/wifi/init.redroid.wifi.sh:$(TARGET_COPY_OUT_VENDOR)/bin/hw/init.redroid.wifi.sh \
     $(LOCAL_PATH)/wifi/hostapd.conf:$(TARGET_COPY_OUT_VENDOR)/etc/hostapd.conf \
     $(LOCAL_PATH)/wifi/wpa_supplicant.conf:$(TARGET_COPY_OUT_VENDOR)/etc/wifi/wpa_supplicant.conf \
     frameworks/native/data/etc/android.hardware.wifi.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.wifi.xml \

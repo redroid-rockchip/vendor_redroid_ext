@@ -106,10 +106,17 @@ int Proxy::run() {
         return 1;
     }
     // Init all inner interfaces
-    for (size_t i = 0; i < mInnerIfs.size(); ++i) {
-        if (!mInnerIfs[i].init()) {
-            return 1;
+    std::vector<Interface>::iterator it = mInnerIfs.begin();
+    for (; it != mInnerIfs.end();) {
+        Interface& innerIf = *it;
+        if (!innerIf.init()) {
+            it = mInnerIfs.erase(it);
+        } else {
+            it++;
         }
+    }
+    if (mInnerIfs.empty()) {
+        return 1;
     }
 
     // Create list of FDs to poll, we're only looking for input (POLLIN)

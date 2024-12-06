@@ -137,10 +137,6 @@ PID=`create_router_ns $NAMESPACE`
 
 init_eth $NAMESPACE $PID
 
-if [ "$REDROID_WIFI" -eq "1" ]; then
-  init_wlan $NAMESPACE $PID
-fi
-
 # Start the ADB daemon in the router namespace
 setprop ctl.start adbd_proxy
 

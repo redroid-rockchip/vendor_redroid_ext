@@ -41,56 +41,26 @@
 #                                  | ***********  ***********
 #
 
-REDROID_WIFI=`getprop ro.boot.redroid_wifi`
-REDROID_RADIO=`getprop ro.boot.redroid_radio`
-if [ "$REDROID_WIFI" -ne "1" -a "$REDROID_RADIO" -ne "1" ]; then
-  echo "No need to initialize the network environment, skip"
-  exit
-fi
+init_radio() {
+  /system/bin/ip link add name radio0 type bridge
+  /system/bin/ip addr add ${wifi_gateway} dev radio0
+  /system/bin/ip link set radio0 mtu 1400
+  /system/bin/ip link set radio0 up
 
-create_router_ns() {
-  local PID_PATH="/data/vendor/var/run/netns/$1.pid"
-  rm "$PID_PATH"
-  setprop ctl.start redroid_router_ns
-  while [ 1 ]; do
-    if [ -f "$PID_PATH" ]; then
-      break
-    else
-      sleep 1s
-    fi
-  done
-  cat $PID_PATH
-}
-
-init_eth() {
-  local NAMESPACE=$1
-  local NAMESPACE_PID=$2
-  local ETH0_ADDR=$(/system/bin/ip addr show dev eth0 | grep 'inet ' | awk '{print $2,$3,$4}')
-  local ETH0_GW=$(/system/bin/ip route get 8.8.8.8 | head -n 1 | awk '{print $3}')
-  echo "Get eth0 addr: ${ETH0_ADDR}, gateway: ${ETH0_GW}"
-  /system/bin/ip link set eth0 netns ${NAMESPACE_PID}
-  /vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set eth0 up
-  /vendor/bin/execns2 ${NAMESPACE} /system/bin/ip addr add ${ETH0_ADDR} dev eth0
-  /vendor/bin/execns2 ${NAMESPACE} /system/bin/ip route add default via ${ETH0_GW} dev eth0
+  setprop ctl.start redroid_vlte
+  sleep 1s
+  setprop ctl.restart vendor.ril-daemon
+  # setprop ctl.start redroid_ril_daemon
 }
 
 init_wlan() {
-  local NAMESPACE=$1
-  local NAMESPACE_PID=$2
-  local WIFI_GATEWAY=`getprop ro.boot.redroid_wifi_gateway`
-  if [ ! -n "$WIFI_GATEWAY" ]; then
-    WIFI_GATEWAY='7.7.7.1/24'
+  local wifi_gateway=`getprop ro.boot.redroid_wifi_gateway`
+  if [ ! -n "$wifi_gateway" ]; then
+    wifi_gateway='7.7.7.1/24'
   fi
   /vendor/bin/create_radios2 2 `expr $RANDOM % 65535`
   if [ "$?" -eq "0" ]; then
-    /vendor/bin/iw phy phy$(/vendor/bin/iw dev wlan1 info | awk -F 'wiphy +' '{print $2}' | awk NF) set netns ${PID}
-    /vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set wlan1 up
-    /vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link add name br0 type bridge
-    /vendor/bin/execns2 ${NAMESPACE} /system/bin/ip addr add ${WIFI_GATEWAY} dev br0
-    /vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set br0 mtu 1400
-    /vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set br0 up
-
-    /vendor/bin/execns2 ${NAMESPACE} /system/bin/iptables -w -W 50000 -t nat -A POSTROUTING -s ${WIFI_GATEWAY} -o eth0 -j MASQUERADE
+    /system/bin/ip link set wlan1 name tap0
 
     # Copy the hostapd configuration file to the data partition
     local sed_args=""
@@ -107,46 +77,26 @@ init_wlan() {
   fi
 }
 
-init_radio() {
-  local NAMESPACE=$1
-  local NAMESPACE_PID=$2
-  /system/bin/ip link add radio0 type veth peer name radio0-peer netns ${NAMESPACE_PID}
-  /system/bin/ip addr add 7.8.8.2/24 dev radio0
-  /system/bin/ip link set radio0 up
-  /system/bin/ip route add default via 7.8.8.1 dev radio0
-  # Enable privacy addresses for radio0, this is done by the framework for wlan0
-  sysctl -wq net.ipv6.conf.radio0.use_tempaddr=2
+redroid_wifi=`getprop ro.boot.redroid_wifi`
+redroid_radio=`getprop ro.boot.redroid_radio`
+if [ "$redroid_wifi" -eq "1" -o "$redroid_radio" -eq "1" ]; then
 
-  /vendor/bin/execns2 ${NAMESPACE} /system/bin/ip addr add 7.8.8.1/24 dev radio0-peer
-  /vendor/bin/execns2 ${NAMESPACE} /system/bin/ip link set radio0-peer up
-  /vendor/bin/execns2 ${NAMESPACE} sysctl -wq net.ipv6.conf.all.forwarding=1
+  local eth0_addr=$(/system/bin/ip addr show dev eth0 | grep 'inet ' | awk '{print $2,$3,$4}')
+  local eth0_gw=$(/system/bin/ip route get 8.8.8.8 | head -n 1 | awk '{print $3}')
+  /system/bin/ip link set eth0 down
+  /system/bin/ip link set eth0 name veth0
+  /system/bin/ip addr add ${eth0_addr} dev veth0
+  /system/bin/ip link set veth0 up
 
-  /vendor/bin/execns2 ${NAMESPACE} /system/bin/iptables -w -W 50000 -t nat -A POSTROUTING -s 7.8.8.0/24 -o eth0 -j MASQUERADE
+  init_radio
+  if [ "$redroid_wifi" -eq "1" ]; then
+    init_wlan
+  fi
 
-  ifconfig radio0 -multicast
-}
+  for i in $(seq 1 240); do
+    /system/bin/ip route add default via ${eth0_gw} dev veth0
+    /system/bin/ip rule add from all lookup main pref 5000
+    sleep 5s
+  done
 
-NAMESPACE="router"
-
-# createns will have created a file that contains the process id (pid) of a
-# process running in the network namespace. This pid is needed for some commands
-# to access the namespace.
-PID=`create_router_ns $NAMESPACE`
-
-/system/bin/ip rule add from all lookup main pref 5000
-
-init_eth $NAMESPACE $PID
-
-# Start the ADB daemon in the router namespace
-setprop ctl.start adbd_proxy
-
-if [ "$REDROID_WIFI" -eq "1" ]; then
-  init_wlan $NAMESPACE $PID
 fi
-
-if [ "$REDROID_RADIO" -eq "1" ]; then
-  init_radio $NAMESPACE $PID
-fi
-
-# Start the IPv6 proxy that will enable use of IPv6 in the main namespace
-setprop ctl.start redroid_ipv6proxy

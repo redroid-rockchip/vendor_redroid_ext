@@ -66,9 +66,6 @@ $(call inherit-product, vendor/rockchip/common/device-vendor.mk)
 ######################
 # network config
 ######################
-PRODUCT_PACKAGES += \
-    createns2 \
-    execns2 \
 
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/network/init.redroid.net.sh:$(TARGET_COPY_OUT_VENDOR)/bin/hw/init.redroid.net.sh \
@@ -87,7 +84,6 @@ PRODUCT_PACKAGES += \
 
 PRODUCT_PACKAGES += \
     create_radios2 \
-    ipv6proxy2 \
     hostapd \
     hostapd_nohidl \
     wpa_supplicant \

@@ -41,17 +41,6 @@
 #                                  | ***********  ***********
 #
 
-init_radio() {
-  local wifi_gateway=`getprop ro.boot.redroid_wifi_gateway`
-  if [ ! -n "$wifi_gateway" ]; then
-    wifi_gateway='7.7.7.1/24'
-  fi
-  /system/bin/ip link add name radio0 type bridge
-  /system/bin/ip addr add ${wifi_gateway} dev radio0
-  /system/bin/ip link set radio0 mtu 1400
-  /system/bin/ip link set radio0 up
-}
-
 init_wlan() {
   local wifi_gateway=`getprop ro.boot.redroid_wifi_gateway`
   if [ ! -n "$wifi_gateway" ]; then
@@ -76,24 +65,39 @@ init_wlan() {
   fi
 }
 
+init_radio() {
+  setprop ctl.start redroid_vlte
+  sleep 1s
+  setprop ctl.restart vendor.ril-daemon
+  # setprop ctl.start redroid_ril_daemon
+}
+
 redroid_wifi=`getprop ro.boot.redroid_wifi`
 redroid_radio=`getprop ro.boot.redroid_radio`
 if [ "$redroid_wifi" -eq "1" -o "$redroid_radio" -eq "1" ]; then
 
+  # rename eth0 => veth0
   local eth0_addr=$(/system/bin/ip addr show dev eth0 | grep 'inet ' | awk '{print $2,$3,$4}')
   local eth0_gw=$(/system/bin/ip route get 8.8.8.8 | head -n 1 | awk '{print $3}')
   /system/bin/ip link set eth0 down
   /system/bin/ip link set eth0 name veth0
-
-  init_radio
-  if [ "$redroid_wifi" -eq "1" ]; then
-    init_wlan
-  fi
-
   /system/bin/ip addr add ${eth0_addr} dev veth0
   /system/bin/ip link set veth0 up
 
-  for i in $(seq 1 12); do
+  # create a bridge
+  /system/bin/ip link add name radio0 type bridge
+  /system/bin/ip addr add ${wifi_gateway} dev radio0
+  /system/bin/ip link set radio0 mtu 1400
+  /system/bin/ip link set radio0 up
+
+  if [ "$redroid_wifi" -eq "1" ]; then
+    init_wlan
+  fi
+  if [ "$redroid_radio" -eq "1" ]; then
+    init_radio
+  fi
+
+  for i in $(seq 1 120); do
     /system/bin/ip route add default via ${eth0_gw} dev veth0
     /system/bin/ip rule add from all lookup main pref 5000
     sleep 5s

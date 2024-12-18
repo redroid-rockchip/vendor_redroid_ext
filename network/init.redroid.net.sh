@@ -42,12 +42,17 @@
 #
 
 init_wlan() {
-  local wifi_gateway=`getprop ro.boot.redroid_wifi_gateway`
-  if [ ! -n "$wifi_gateway" ]; then
-    wifi_gateway='7.7.7.1/24'
-  fi
   /vendor/bin/create_radios2 2 `expr $RANDOM % 65535`
   if [ "$?" -eq "0" ]; then
+    # create a bridge
+    local wifi_gateway=`getprop ro.boot.redroid_wifi_gateway`
+    if [ ! -n "$wifi_gateway" ]; then
+      wifi_gateway='7.7.7.1/24'
+    fi
+    /system/bin/ip link add name br0 type bridge
+    /system/bin/ip addr add ${wifi_gateway} dev br0
+    /system/bin/ip link set br0 mtu 1400
+    /system/bin/ip link set br0 up
     /system/bin/ip link set wlan1 name tap0
 
     # Copy the hostapd configuration file to the data partition
@@ -66,6 +71,10 @@ init_wlan() {
 }
 
 init_radio() {
+  /system/bin/ip link add name radio0 type bridge
+  /system/bin/ip addr add 7.8.8.2/16 dev radio0
+  /system/bin/ip link set radio0 up
+
   setprop ctl.start redroid_vlte
   sleep 1s
   setprop ctl.restart vendor.ril-daemon
@@ -83,12 +92,7 @@ if [ "$redroid_wifi" -eq "1" -o "$redroid_radio" -eq "1" ]; then
   /system/bin/ip link set eth0 name veth0
   /system/bin/ip addr add ${eth0_addr} dev veth0
   /system/bin/ip link set veth0 up
-
-  # create a bridge
-  /system/bin/ip link add name radio0 type bridge
-  /system/bin/ip addr add ${wifi_gateway} dev radio0
-  /system/bin/ip link set radio0 mtu 1400
-  /system/bin/ip link set radio0 up
+  /system/bin/ip route add default via ${eth0_gw} dev veth0
 
   if [ "$redroid_wifi" -eq "1" ]; then
     init_wlan

@@ -76,7 +76,7 @@ on boot
 
     start redroid_net
 
-service redroid_net /vendor/bin/hw/init.redroid.net.sh
+service redroid_net /system/bin/logwrapper /vendor/bin/hw/init.redroid.net.sh
     class late_start
     user root
     group root wakelock wifi

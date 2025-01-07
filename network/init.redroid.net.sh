@@ -75,35 +75,60 @@ init_radio() {
   /system/bin/ip addr add 7.8.8.2/16 dev radio0
   /system/bin/ip link set radio0 up
 
+  echo "start redroid_vlte"
   setprop ctl.start redroid_vlte
-  sleep 1s
-  setprop ctl.restart vendor.ril-daemon
-  # setprop ctl.start redroid_ril_daemon
+  # echo "restart vendor.ril-daemon"
+  # setprop ctl.stop vendor.ril-daemon
+  # setprop ctl.stop redroid_vlte
+  # setprop ctl.start redroid_vlte
+  # setprop ctl.start vendor.ril-daemon
 }
 
 redroid_wifi=`getprop ro.boot.redroid_wifi`
 redroid_radio=`getprop ro.boot.redroid_radio`
 if [ "$redroid_wifi" -eq "1" -o "$redroid_radio" -eq "1" ]; then
 
-  # rename eth0 => veth0
-  local eth0_addr=$(/system/bin/ip addr show dev eth0 | grep 'inet ' | awk '{print $2,$3,$4}')
-  local eth0_gw=$(/system/bin/ip route get 8.8.8.8 | head -n 1 | awk '{print $3}')
+  if [ "$redroid_wifi" -eq "1" ]; then
+    echo "init wlan"
+    init_wlan
+  fi
+  if [ "$redroid_radio" -eq "1" ]; then
+    echo "init radio"
+    init_radio
+  fi
+
+  echo "update ip rule"
+  /system/bin/ip rule add from all lookup main pref 5000
+
+  local eth0_addr=""
+  local eth0_gw=""
+  for i in $(seq 1 20); do
+    if [ -z "$eth0_addr" ]; then
+      eth0_addr=$(/system/bin/ip addr show dev eth0 | grep 'inet ' | awk '{print $2,$3,$4}')
+    fi
+    if [ -z "$eth0_gw" ]; then
+      eth0_gw=$(/system/bin/ip route get 8.8.8.8 | head -n 1 | awk '{print $3}')
+    fi
+    if [ -n "$eth0_addr" -a -n "$eth0_gw" ]; then
+      break
+    fi
+    sleep 1s
+  done
+  echo "find eth0 addr: ${eth0_addr}, gw: ${eth0_gw}"
+
+  echo "rename eth0 to veth0"
   /system/bin/ip link set eth0 down
   /system/bin/ip link set eth0 name veth0
+
+  echo "init veth0"
   /system/bin/ip addr add ${eth0_addr} dev veth0
   /system/bin/ip link set veth0 up
   /system/bin/ip route add default via ${eth0_gw} dev veth0
 
-  if [ "$redroid_wifi" -eq "1" ]; then
-    init_wlan
-  fi
-  if [ "$redroid_radio" -eq "1" ]; then
-    init_radio
-  fi
-
   for i in $(seq 1 120); do
-    /system/bin/ip route add default via ${eth0_gw} dev veth0
-    /system/bin/ip rule add from all lookup main pref 5000
+    echo "update ip rule: ${i}"
+    /system/bin/ip rule add from all lookup main pref 5000 2>/dev/null
+    /system/bin/ip route add default via ${eth0_gw} dev veth0 2>/dev/null
     sleep 5s
   done
 

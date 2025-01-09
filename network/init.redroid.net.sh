@@ -54,6 +54,7 @@ init_wlan() {
     /system/bin/ip link set br0 mtu 1400
     /system/bin/ip link set br0 up
     /system/bin/ip link set wlan1 name tap0
+    /system/bin/iptables -w -W 50000 -t nat -A POSTROUTING -s ${wifi_gateway} -o radio0 -j MASQUERADE
 
     # Copy the hostapd configuration file to the data partition
     local sed_args=""
@@ -71,10 +72,6 @@ init_wlan() {
 }
 
 init_radio() {
-  /system/bin/ip link add name radio0 type bridge
-  /system/bin/ip addr add 7.8.8.2/16 dev radio0
-  /system/bin/ip link set radio0 up
-
   echo "start redroid_vlte"
   setprop ctl.start redroid_vlte
   # echo "restart vendor.ril-daemon"
@@ -88,48 +85,44 @@ redroid_wifi=`getprop ro.boot.redroid_wifi`
 redroid_radio=`getprop ro.boot.redroid_radio`
 if [ "$redroid_wifi" -eq "1" -o "$redroid_radio" -eq "1" ]; then
 
+  local eth0_addr=""
+  local eth0_gw=""
+  for i in $(seq 1 20); do
+    eth0_addr=$(/system/bin/ip addr show dev eth0 | grep 'inet ' | awk '{print $2,$3,$4}')
+    eth0_gw=$(/system/bin/ip route get 8.8.8.8 | head -n 1 | awk '{print $3}')
+    if [ -z "$eth0_addr" -o -z "$eth0_gw" ]; then
+      echo "failed to find eth0 addr and gw, retry 1s later"
+      sleep 1s
+    else
+      echo "find eth0 addr: ${eth0_addr}, gw: ${eth0_gw}"
+      break
+    fi
+  done
+  if [ -z "$eth0_addr" -o -z "$eth0_gw" ]; then
+    echo "failed to find eth0 addr and gw, exit"
+    exit
+  fi
+
+  echo "rename eth0 to radio0"
+  /system/bin/ip link set eth0 down
+  /system/bin/ip link set eth0 name radio0
+
+  echo "init radio0"
+  /system/bin/ip addr add ${eth0_addr} dev radio0
+  /system/bin/ip link set radio0 up
+  /system/bin/ip route add default via ${eth0_gw} dev radio0
+
   if [ "$redroid_wifi" -eq "1" ]; then
     echo "init wlan"
     init_wlan
   fi
   if [ "$redroid_radio" -eq "1" ]; then
     echo "init radio"
+    local radio0_addr
+    radio0_addr=($eth0_addr)
+    setprop net.eth0.ip ${radio0_addr[0]}
+    setprop net.eth0.gateway ${eth0_gw}
     init_radio
   fi
-
-  echo "update ip rule"
-  /system/bin/ip rule add from all lookup main pref 5000
-
-  local eth0_addr=""
-  local eth0_gw=""
-  for i in $(seq 1 20); do
-    if [ -z "$eth0_addr" ]; then
-      eth0_addr=$(/system/bin/ip addr show dev eth0 | grep 'inet ' | awk '{print $2,$3,$4}')
-    fi
-    if [ -z "$eth0_gw" ]; then
-      eth0_gw=$(/system/bin/ip route get 8.8.8.8 | head -n 1 | awk '{print $3}')
-    fi
-    if [ -n "$eth0_addr" -a -n "$eth0_gw" ]; then
-      break
-    fi
-    sleep 1s
-  done
-  echo "find eth0 addr: ${eth0_addr}, gw: ${eth0_gw}"
-
-  echo "rename eth0 to veth0"
-  /system/bin/ip link set eth0 down
-  /system/bin/ip link set eth0 name veth0
-
-  echo "init veth0"
-  /system/bin/ip addr add ${eth0_addr} dev veth0
-  /system/bin/ip link set veth0 up
-  /system/bin/ip route add default via ${eth0_gw} dev veth0
-
-  for i in $(seq 1 120); do
-    echo "update ip rule: ${i}"
-    /system/bin/ip rule add from all lookup main pref 5000 2>/dev/null
-    /system/bin/ip route add default via ${eth0_gw} dev veth0 2>/dev/null
-    sleep 5s
-  done
 
 fi

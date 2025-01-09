@@ -61,6 +61,11 @@ service gnss /vendor/bin/hw/android.hardware.gnss-service
 ######################
 on boot
     setprop vold.post_fs_data_done 1
+    mkdir /data/vendor/var 0755 root root
+    mkdir /data/vendor/var/run 0755 root root
+    mkdir /data/vendor/var/run/netns 0755 root root
+    write /data/vendor/var/run/netns/main.pid 1
+    write /data/vendor/var/run/netns/router.pid 1
 
     setprop wifi.interface wlan0
     setprop wifi.direct.interface p2p-dev-wlan0
@@ -83,15 +88,32 @@ service redroid_net /system/bin/logwrapper /vendor/bin/hw/init.redroid.net.sh
     oneshot
     disabled    # Started on post-fs-data
 
+service redroid_router_ns /vendor/bin/createns2 router
+    user root
+    group root
+    disabled
+    oneshot
+
+service redroid_ipv6proxy /vendor/bin/execns2 router /vendor/bin/ipv6proxy2 -o eth0 -i br0,radio0-peer
+    user root
+    group root
+    disabled
+
+service adbd_proxy /vendor/bin/execns2 router nc -L -p 5555 /vendor/bin/execns2 main nc 127.0.0.1 5555
+    user root
+    group root
+    disabled
+    oneshot
+
 ######################
 # for wifi
 ######################
-service redroid_hostapd /vendor/bin/hostapd_nohidl /data/vendor/wifi/hostapd/redroid_hostapd.conf
+service redroid_hostapd /vendor/bin/execns2 router /vendor/bin/hostapd_nohidl /data/vendor/wifi/hostapd/redroid_hostapd.conf
     user root
     group root wifi net_raw net_admin
     disabled
 
-service redroid_dhcpserver /vendor/bin/dhcpserver2 --exclude-interface veth0
+service redroid_dhcpserver /vendor/bin/execns2 router /vendor/bin/dhcpserver2 --exclude-interface eth0
     user root
     group root wifi net_raw net_admin
     disabled

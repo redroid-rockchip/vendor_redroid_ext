@@ -126,10 +126,8 @@ class NetworkStartupTest(unittest.TestCase):
         for router, failure in (
             (True, "setprop vendor.qemu.networknamespace "),
             (True, "setprop ctl.start redroid_router_ns"),
-            (True, "create_radios2 "),
             (True, "ip link set eth0 netns "),
             (True, "ip route add default "),
-            (True, "setprop vendor.redroid.net.interface "),
             (False, "ip link set eth0 name veth0"),
             (False, "ip addr replace "),
             (False, "ip route replace default "),
@@ -140,11 +138,55 @@ class NetworkStartupTest(unittest.TestCase):
                 self.state["fail"] = failure
                 self.assert_failed_before_consumers()
 
-    def test_service_start_failure_does_not_start_later_consumers(self) -> None:
-        self.state["fail"] = "setprop ctl.start redroid_dhcpserver"
-        result = self.run_script()
-        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(self.state["started"], ["redroid_hostapd"])
+    def test_independent_transports_continue_after_local_failures(self) -> None:
+        for router in (True, False):
+            for failure, expected in (
+                ("create_radios2 ", ["redroid_vlte"]),
+                ("ip link set wlan1 up", ["redroid_vlte"]),
+                ("setprop vendor.redroid.net.interface ", ["redroid_vlte"]),
+                ("setprop ctl.start redroid_hostapd", ["redroid_vlte"]),
+                ("setprop ctl.start redroid_dhcpserver",
+                 ["redroid_hostapd", "redroid_vlte"]),
+                ("ip link add radio0 ", ["redroid_hostapd", "redroid_dhcpserver"]),
+                ("setprop ctl.start redroid_vlte",
+                 ["redroid_hostapd", "redroid_dhcpserver"]),
+            ):
+                with self.subTest(router=router, failure=failure):
+                    self.setUp()
+                    self.state["router"] = router
+                    self.state["fail"] = failure
+                    result = self.run_script()
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(self.state["started"], expected)
+                    self.assertEqual(self.state["violations"], [])
+
+    def test_auxiliary_start_failure_does_not_interrupt_transports(self) -> None:
+        for failure in ("setprop ctl.start adbd_proxy",
+                        "setprop ctl.start redroid_ipv6proxy"):
+            with self.subTest(failure=failure):
+                self.setUp()
+                self.state["fail"] = failure
+                result = self.run_script()
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(self.state["started"], [
+                    "redroid_hostapd", "redroid_dhcpserver", "redroid_vlte",
+                ])
+                self.assertEqual(self.state["violations"], [])
+
+    def test_no_usable_requested_transport_exits_with_error(self) -> None:
+        for wifi, radio, failure in (
+            ("1", "0", "create_radios2 "),
+            ("0", "1", "ip link add radio0 "),
+            ("1", "0", "setprop ctl.start redroid_dhcpserver"),
+            ("0", "1", "setprop ctl.start redroid_vlte"),
+        ):
+            with self.subTest(wifi=wifi, radio=radio, failure=failure):
+                self.setUp()
+                self.state["properties"]["ro.boot.redroid_wifi"] = wifi
+                self.state["properties"]["ro.boot.redroid_radio"] = radio
+                self.state["fail"] = failure
+                result = self.run_script()
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_single_transport_and_disabled_switches(self) -> None:
         for router in (True, False):

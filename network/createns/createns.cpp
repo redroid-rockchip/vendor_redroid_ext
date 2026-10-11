@@ -22,6 +22,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <sched.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mount.h>
@@ -102,12 +103,13 @@ static bool writeNamespacePid(const char* name, pid_t pid) {
         return false;
     }
     path += ".pid";
+    const std::string temporaryPath = path + ".tmp";
 
-    Fd fd(::open(path.c_str(),
+    Fd fd(::open(temporaryPath.c_str(),
                  O_CREAT | O_TRUNC | O_WRONLY | O_CLOEXEC,
                  S_IRUSR | S_IWUSR | S_IRGRP));
     if (fd.get() == -1) {
-        ALOGE("Unable to create file '%s': %s", path.c_str(), strerror(errno));
+        ALOGE("Unable to create file '%s': %s", temporaryPath.c_str(), strerror(errno));
         return false;
     }
 
@@ -123,28 +125,33 @@ static bool writeNamespacePid(const char* name, pid_t pid) {
                            static_cast<int64_t>(pid));
     if (printed <= 0) {
         ALOGE("Unabled to created PID string for writing");
-        removeFile(path.c_str());
+        removeFile(temporaryPath.c_str());
         return false;
     }
 
     const char* toPrint = pidString;
     int remaining = printed;
-    for (;;) {
-        int result = ::write(fd.get(), toPrint, remaining);
-        if (result < 0) {
-            if (errno == EINTR) {
+    while (remaining > 0) {
+        ssize_t result = ::write(fd.get(), toPrint, remaining);
+        if (result <= 0) {
+            if (result < 0 && errno == EINTR) {
                 continue;
             }
             ALOGE("Unable to write pid to file %s: %s",
-                  path.c_str(), strerror(errno));
-            removeFile(path.c_str());
+                  temporaryPath.c_str(),
+                  result == 0 ? "write returned zero" : strerror(errno));
+            removeFile(temporaryPath.c_str());
             return false;
-        } else if (result < printed) {
-            remaining -= result;
-            toPrint += result;
-        } else {
-            break;
         }
+        remaining -= result;
+        toPrint += result;
+    }
+
+    // Publish only complete PID contents for namespace consumers.
+    if (::rename(temporaryPath.c_str(), path.c_str()) != 0) {
+        ALOGE("Unable to publish pid file %s: %s", path.c_str(), strerror(errno));
+        removeFile(temporaryPath.c_str());
+        return false;
     }
     return true;
 }
@@ -183,10 +190,22 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (!writeNamespacePid(argv[1], ::getpid())) {
+    bool ready = writeNamespacePid(argv[1], ::getpid());
+    if (ready) {
+        int result = property_set("vendor.qemu.networknamespace", "ready");
+        if (result != 0) {
+            ALOGE("Failed to publish namespace readiness: %d", result);
+            removeFile((path + ".pid").c_str());
+            ready = false;
+        }
+    }
+    if (!ready) {
+        if (::umount(path.c_str()) != 0) {
+            ALOGE("Failed to unmount namespace %s: %s", path.c_str(), strerror(errno));
+        }
+        removeFile(path.c_str());
         return 1;
     }
-    property_set("vendor.qemu.networknamespace", "ready");
 
     for (;;) {
         pause();

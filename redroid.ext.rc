@@ -113,7 +113,7 @@ service redroid_hostapd /vendor/bin/execns2 router /vendor/bin/hostapd_nohidl /d
     group root wifi net_raw net_admin
     disabled
 
-service redroid_dhcpserver /vendor/bin/execns2 router /vendor/bin/dhcpserver2 --exclude-interface eth0
+service redroid_dhcpserver /vendor/bin/execns2 router /vendor/bin/dhcpserver2 --exclude-interface ${vendor.redroid.net.interface}
     user root
     group root wifi net_raw net_admin
     disabled

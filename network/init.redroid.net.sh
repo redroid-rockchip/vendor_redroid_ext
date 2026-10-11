@@ -139,16 +139,31 @@ if [ "$redroid_wifi" -eq "1" -o "$redroid_radio" -eq "1" ]; then
     router_ns="router"
     router_pid=$(create_router_ns $router_ns) || exit 1
     echo "start the ADB daemon in the router namespace"
-    setprop ctl.start adbd_proxy || exit 1
+    setprop ctl.start adbd_proxy || echo "failed to start ADB proxy" >&2
   else
     echo "iptables is not available, disable router namespace"
   fi
 
+  wifi_ready=0
+  radio_ready=0
   if [ "$redroid_wifi" -eq "1" ]; then
-    init_wlan $router_ns $router_pid || exit 1
+    if init_wlan "$router_ns" "$router_pid"; then
+      wifi_ready=1
+    else
+      echo "failed to initialize Wi-Fi; continuing other transports" >&2
+    fi
   fi
   if [ "$redroid_radio" -eq "1" ]; then
-    init_radio $router_ns $router_pid || exit 1
+    if init_radio "$router_ns" "$router_pid"; then
+      radio_ready=1
+    else
+      echo "failed to initialize radio; continuing other transports" >&2
+    fi
+  fi
+
+  if [ "$wifi_ready" -eq 0 -a "$radio_ready" -eq 0 ]; then
+    echo "failed to initialize any requested network transport" >&2
+    exit 1
   fi
 
   eth0_addr=""
@@ -184,7 +199,7 @@ if [ "$redroid_wifi" -eq "1" -o "$redroid_radio" -eq "1" ]; then
     /vendor/bin/execns2 ${router_ns} /system/bin/ip addr add ${eth0_addr} dev eth0 || exit 1
     /vendor/bin/execns2 ${router_ns} /system/bin/ip route add default via ${eth0_gw} dev eth0 || exit 1
     # Start the IPv6 proxy that will enable use of IPv6 in the main namespace
-    setprop ctl.start redroid_ipv6proxy || exit 1
+    setprop ctl.start redroid_ipv6proxy || echo "failed to start IPv6 proxy" >&2
   else
     network_interface="veth0"
     echo "rename eth0 to veth0 in main"
@@ -197,15 +212,27 @@ if [ "$redroid_wifi" -eq "1" -o "$redroid_radio" -eq "1" ]; then
     /system/bin/ip route replace default via ${eth0_gw} dev veth0 || exit 1
   fi
 
-  if [ "$redroid_wifi" -eq "1" ]; then
-    setprop vendor.redroid.net.interface "$network_interface" || exit 1
-    echo "start hostapd, dhcpserver in $router_ns"
-    setprop ctl.start redroid_hostapd || exit 1
-    setprop ctl.start redroid_dhcpserver || exit 1
+  if [ "$wifi_ready" -eq 1 ]; then
+    if ! setprop vendor.redroid.net.interface "$network_interface"; then
+      echo "failed to publish DHCP upstream interface" >&2
+      wifi_ready=0
+    elif ! setprop ctl.start redroid_hostapd; then
+      echo "failed to start hostapd" >&2
+      wifi_ready=0
+    elif ! setprop ctl.start redroid_dhcpserver; then
+      echo "failed to start DHCP server" >&2
+      wifi_ready=0
+    fi
   fi
-  if [ "$redroid_radio" -eq "1" ]; then
-    echo "start redroid_vlte"
-    setprop ctl.start redroid_vlte || exit 1
+  if [ "$radio_ready" -eq 1 ]; then
+    if ! setprop ctl.start redroid_vlte; then
+      echo "failed to start virtual radio" >&2
+      radio_ready=0
+    fi
+  fi
+  if [ "$wifi_ready" -eq 0 -a "$radio_ready" -eq 0 ]; then
+    echo "failed to start any requested network transport" >&2
+    exit 1
   fi
 
   if [ "$router_ns" == "main" ]; then

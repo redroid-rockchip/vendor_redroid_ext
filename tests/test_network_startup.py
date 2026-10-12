@@ -110,6 +110,33 @@ class NetworkStartupTest(unittest.TestCase):
                     self.assertLess(events.index("setprop ctl.start redroid_vlte"),
                                     events.index("sleep 5s"))
 
+    def test_upstream_waits_before_network_mutation(self) -> None:
+        self.state["addr_ready_after"] = 4
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        events = self.state["events"]
+        self.assertEqual(self.state["addr_polls"], 4)
+        self.assertEqual(events.count("sleep 1s"), 3)
+        self.assertLess(events.index("ip addr show dev eth0"),
+                        events.index("setprop ctl.start redroid_router_ns"))
+        self.assertLess(events.index("ip addr show dev eth0"),
+                        next(i for i, event in enumerate(events) if event.startswith("create_radios2 ")))
+
+    def test_no_upstream_stops_without_mutating_topology(self) -> None:
+        for failure in ("no_uplink", "no_gateway"):
+            with self.subTest(failure=failure):
+                self.setUp()
+                self.state[failure] = True
+                result = self.run_script()
+                self.assertNotEqual(result.returncode, 0,
+                                    result.stdout + result.stderr)
+                self.assertEqual(self.state["events"].count("sleep 1s"), 60)
+                self.assertNotIn("setprop ctl.start redroid_router_ns",
+                                 self.state["events"])
+                self.assertEqual(self.state["started"], [])
+                self.assertFalse(any(event.startswith("create_radios2")
+                                     for event in self.state["events"]))
+
     def test_namespace_timeout_does_not_use_stale_readiness(self) -> None:
         self.state["timeout"] = True
         self.assert_failed_before_consumers()
@@ -147,18 +174,24 @@ class NetworkStartupTest(unittest.TestCase):
                 ("setprop ctl.start redroid_hostapd", ["redroid_vlte"]),
                 ("setprop ctl.start redroid_dhcpserver",
                  ["redroid_hostapd", "redroid_vlte"]),
-                ("ip link add radio0 ", ["redroid_hostapd", "redroid_dhcpserver"]),
+                ("{radio_link}", ["redroid_hostapd", "redroid_dhcpserver"]),
                 ("setprop ctl.start redroid_vlte",
                  ["redroid_hostapd", "redroid_dhcpserver"]),
             ):
                 with self.subTest(router=router, failure=failure):
                     self.setUp()
                     self.state["router"] = router
-                    self.state["fail"] = failure
+                    self.state["fail"] = failure.format(
+                        radio_link=("ip link add radio0 " if router
+                                    else "ip link add name radio0 ")
+                    )
                     result = self.run_script()
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                     self.assertEqual(self.state["started"], expected)
                     self.assertEqual(self.state["violations"], [])
+                    if failure == "setprop ctl.start redroid_dhcpserver":
+                        self.assertIn("setprop ctl.stop redroid_hostapd",
+                                      self.state["events"])
 
     def test_auxiliary_start_failure_does_not_interrupt_transports(self) -> None:
         for failure in ("setprop ctl.start adbd_proxy",

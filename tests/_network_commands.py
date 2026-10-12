@@ -63,9 +63,15 @@ def main() -> int:
         print("wiphy 1")
     elif command == "ip":
         if arguments == ["addr", "show", "dev", "eth0"]:
-            print("    inet 192.168.40.2/24 brd 192.168.40.255 scope global eth0")
+            state["addr_polls"] = state.get("addr_polls", 0) + 1
+            if (not state.get("no_uplink") and
+                    state["addr_polls"] >= state.get("addr_ready_after", 1)):
+                print("    inet 192.168.40.2/24 brd 192.168.40.255 scope global eth0")
         elif arguments[:2] == ["route", "get"]:
-            print("8.8.8.8 from 192.168.40.2 via 192.168.40.1 dev eth0")
+            if state.get("no_gateway"):
+                print("8.8.8.8 from 192.168.40.2 dev eth0")
+            else:
+                print("8.8.8.8 from 192.168.40.2 via 192.168.40.1 dev eth0")
         elif arguments == ["link", "set", "eth0", "name", "veth0"]:
             state["interface"] = "veth0"
         elif arguments[:4] == ["link", "set", "eth0", "netns"]:

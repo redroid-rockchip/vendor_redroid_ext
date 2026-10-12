@@ -131,6 +131,33 @@ redroid_wifi=`getprop ro.boot.redroid_wifi`
 redroid_radio=`getprop ro.boot.redroid_radio`
 if [ "$redroid_wifi" -eq "1" -o "$redroid_radio" -eq "1" ]; then
 
+  # Wait for the upstream gateway before changing any network interfaces.
+  eth0_addr=""
+  eth0_gw=""
+  for i in $(seq 1 60); do
+    eth0_addr=$(/system/bin/ip addr show dev eth0 | grep 'inet ' | awk '{print $2,$3,$4}')
+    if [ -z "$eth0_addr" ]; then
+      echo "failed to find eth0 addr, retry 1s later"
+      sleep 1s
+      continue
+    fi
+    eth0_addr_array=($eth0_addr)
+    eth0_gw=$(/system/bin/ip route get 8.8.8.8 from ${eth0_addr_array[0]} | head -n 1 | awk '{for (i=1; i<=NF; i++) if ($i=="via") {print $(i+1); break}}')
+    if [ -z "$eth0_gw" ]; then
+      echo "failed to find eth0 gateway, retry 1s later"
+      sleep 1s
+      continue
+    fi
+    break
+  done
+  if [ -z "$eth0_addr" -o -z "$eth0_gw" ]; then
+    echo "failed to find eth0 addr and gw, exit"
+    exit 1
+  else
+    echo "find eth0 addr: ${eth0_addr}, gw: ${eth0_gw}"
+  fi
+
+
   router_ns="main"
   router_pid=1
   /system/bin/iptables -t nat -L # 1>/dev/null 2>&1
@@ -166,31 +193,6 @@ if [ "$redroid_wifi" -eq "1" -o "$redroid_radio" -eq "1" ]; then
     exit 1
   fi
 
-  eth0_addr=""
-  eth0_gw=""
-  for i in $(seq 1 20); do
-    eth0_addr=$(/system/bin/ip addr show dev eth0 | grep 'inet ' | awk '{print $2,$3,$4}')
-    if [ -z "$eth0_addr" ]; then
-      echo "failed to find eth0 addr, retry 1s later"
-      sleep 1s
-      continue
-    fi
-    eth0_addr_array=($eth0_addr)
-    eth0_gw=$(/system/bin/ip route get 8.8.8.8 from ${eth0_addr_array[0]} | head -n 1 | awk '{print $5}')
-    if [ -z "$eth0_gw" ]; then
-      echo "failed to find eth0 gateway, retry 1s later"
-      sleep 1s
-      continue
-    fi
-    break
-  done
-  if [ -z "$eth0_addr" -o -z "$eth0_gw" ]; then
-    echo "failed to find eth0 addr and gw, exit"
-    exit 1
-  else
-    echo "find eth0 addr: ${eth0_addr}, gw: ${eth0_gw}"
-  fi
-
   if [ "$router_ns" == "router" ]; then
     network_interface="eth0"
     echo "init eth0 in router"
@@ -221,6 +223,7 @@ if [ "$redroid_wifi" -eq "1" -o "$redroid_radio" -eq "1" ]; then
       wifi_ready=0
     elif ! setprop ctl.start redroid_dhcpserver; then
       echo "failed to start DHCP server" >&2
+      setprop ctl.stop redroid_hostapd || echo "failed to stop hostapd" >&2
       wifi_ready=0
     fi
   fi

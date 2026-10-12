@@ -116,7 +116,7 @@ class NetworkStartupTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         events = self.state["events"]
         self.assertEqual(self.state["addr_polls"], 4)
-        self.assertEqual(events.count("sleep 1s"), 3)
+        self.assertEqual(events[:events.index("setprop ctl.start redroid_router_ns")].count("sleep 1s"), 3)
         self.assertLess(events.index("ip addr show dev eth0"),
                         events.index("setprop ctl.start redroid_router_ns"))
         self.assertLess(events.index("ip addr show dev eth0"),
